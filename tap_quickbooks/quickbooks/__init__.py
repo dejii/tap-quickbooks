@@ -381,7 +381,7 @@ class Quickbooks():
             'grant_type': 'refresh_token',
             'client_id': self.qb_client_id,
             'client_secret': self.qb_client_secret,
-            'refresh_token': auth_state['refresh_token'] if auth_state['refresh_token'] else self.refresh_token
+            'refresh_token': auth_state['refresh_token'] if auth_state.get('refresh_token') else self.refresh_token
         }
 
         LOGGER.info("Attempting login via OAuth2")
