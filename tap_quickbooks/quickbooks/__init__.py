@@ -66,21 +66,26 @@ def write_json_file(filename, content):
         json.dump(content, f, indent=4)
 
 
-def write_auth_state(access_token=None, refresh_token=None):
+def get_auth_state_file():
     parser = argparse.ArgumentParser()
     parser.add_argument('-c', '--config', help='Config file', required=True)
     _args, unknown = parser.parse_known_args()
     config_file = _args.config
     auth_state_file = os.path.join(os.path.dirname(config_file), 'auth_state.json')
+    return auth_state_file
+
+def read_auth_state():
+    auth_state_file = get_auth_state_file()
     try:
-        auth_content = read_json_file(auth_state_file)
+        auth_state = read_json_file(auth_state_file)
     except FileNotFoundError:
-        auth_content = {}
-    if access_token:
-        auth_content['access_token'] = access_token
-    if refresh_token:
-        auth_content['refresh_token'] = refresh_token
-    write_json_file(auth_state_file, auth_content)
+        auth_state = {}
+    return auth_state
+
+
+def write_auth_state(auth_state):
+    auth_state_file = get_auth_state_file()
+    write_json_file(auth_state_file, auth_state)
 
 
 QB_OBJECT_DEFINITIONS = _load_object_definitions()
@@ -370,8 +375,14 @@ class Quickbooks():
         else:
             login_url = 'https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer'
 
-        login_body = {'grant_type': 'refresh_token', 'client_id': self.qb_client_id,
-                      'client_secret': self.qb_client_secret, 'refresh_token': self.refresh_token}
+        auth_state = read_auth_state()
+
+        login_body = {
+            'grant_type': 'refresh_token',
+            'client_id': self.qb_client_id,
+            'client_secret': self.qb_client_secret,
+            'refresh_token': auth_state['refresh_token'] if auth_state['refresh_token'] else self.refresh_token
+        }
 
         LOGGER.info("Attempting login via OAuth2")
 
@@ -385,19 +396,13 @@ class Quickbooks():
             auth = resp.json()
 
             self.access_token = auth['access_token']
+            self.refresh_token = auth['refresh_token']
 
-            new_refresh_token = auth['refresh_token']
+            auth_state['access_token'] = auth['access_token']
+            auth_state['refresh_token'] = auth['refresh_token']
 
-            # persist access_token
-            write_auth_state(access_token=self.access_token)
-
-            # Check if the refresh token is update, if so update the config file with new refresh token.
-            if new_refresh_token != self.refresh_token:
-                LOGGER.info(f"Old refresh token [{self.refresh_token}] expired.")
-                LOGGER.info("New Refresh token: {}".format(new_refresh_token))
-                write_auth_state(refresh_token=new_refresh_token)
-
-            self.refresh_token = new_refresh_token
+            # persist access_token and refresh token
+            write_auth_state(auth_state)
 
         except Exception as e:
             error_message = str(e)
