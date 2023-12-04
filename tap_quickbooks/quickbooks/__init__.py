@@ -66,6 +66,23 @@ def write_json_file(filename, content):
         json.dump(content, f, indent=4)
 
 
+def write_auth_state(access_token=None, refresh_token=None):
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-c', '--config', help='Config file', required=True)
+    _args, unknown = parser.parse_known_args()
+    config_file = _args.config
+    auth_state_file = os.path.join(os.path.dirname(config_file), 'auth_state.json')
+    try:
+        auth_content = read_json_file(auth_state_file)
+    except FileNotFoundError:
+        auth_content = {}
+    if access_token:
+        auth_content['access_token'] = access_token
+    if refresh_token:
+        auth_content['refresh_token'] = refresh_token
+    write_json_file(auth_state_file, auth_content)
+
+
 QB_OBJECT_DEFINITIONS = _load_object_definitions()
 QB_OBJECTS = QB_OBJECT_DEFINITIONS.keys()
 
@@ -370,27 +387,15 @@ class Quickbooks():
             self.access_token = auth['access_token']
 
             new_refresh_token = auth['refresh_token']
-            
+
             # persist access_token
-            parser = argparse.ArgumentParser()
-            parser.add_argument('-c', '--config', help='Config file', required=True)
-            _args, unknown = parser.parse_known_args()
-            config_file = _args.config
-            config_content = read_json_file(config_file)
-            config_content['access_token'] = self.access_token
-            write_json_file(config_file, config_content)
+            write_auth_state(access_token=self.access_token)
 
             # Check if the refresh token is update, if so update the config file with new refresh token.
             if new_refresh_token != self.refresh_token:
                 LOGGER.info(f"Old refresh token [{self.refresh_token}] expired.")
                 LOGGER.info("New Refresh token: {}".format(new_refresh_token))
-                parser = argparse.ArgumentParser()
-                parser.add_argument('-c', '--config', help='Config file', required=True)
-                _args, unknown = parser.parse_known_args()
-                config_file = _args.config
-                config_content = read_json_file(config_file)
-                config_content['refresh_token'] = new_refresh_token
-                write_json_file(config_file, config_content)
+                write_auth_state(refresh_token=new_refresh_token)
 
             self.refresh_token = new_refresh_token
 
