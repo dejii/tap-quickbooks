@@ -72,7 +72,8 @@ def get_auth_state_file():
     parser.add_argument('-c', '--config', help='Config file', required=True)
     _args, unknown = parser.parse_known_args()
     config_file = _args.config
-    auth_state_file = Path(config_file).parent.parent.joinpath('extractors/tap-quickbooks/auth_state.json').absolute()
+    # .meltano/run/tap-quickbooks/config.json => .meltano/extractors/tap-quickbooks/auth_state.json
+    auth_state_file = Path(config_file).parent.parent.parent.joinpath('extractors/tap-quickbooks/auth_state.json').absolute()
     return auth_state_file
 
 def read_auth_state():
