@@ -71,6 +71,7 @@ def extract_bucket_name(uri: str) -> str:
     return bucket_name
 
 def read_json_file_gcs(gcs_auth_state_uri):
+    LOGGER.info(f"Reading auth state from GCS: {gcs_auth_state_uri}")
     bucket_name = extract_bucket_name(gcs_auth_state_uri)
     filename = urlparse(gcs_auth_state_uri).path.lstrip('/')
     client = storage.Client()
@@ -83,6 +84,7 @@ def read_json_file_gcs(gcs_auth_state_uri):
         return {}
 
 def write_json_file_gcs(auth_state, gcs_auth_state_uri):
+    LOGGER.info(f"Writing auth state to GCS: {gcs_auth_state_uri}")
     bucket_name = extract_bucket_name(gcs_auth_state_uri)
     filename = urlparse(gcs_auth_state_uri).path.lstrip('/')
     client = storage.Client()
