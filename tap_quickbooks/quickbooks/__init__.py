@@ -80,7 +80,8 @@ def read_json_file_gcs(gcs_auth_state_uri):
     try:
         content = blob.download_as_string()
         return json.loads(content)
-    except Exception:
+    except Exception as e:
+        LOGGER.info(f"Failed to read auth state from GCS: {gcs_auth_state_uri} - {str(e)}")
         return {}
 
 def write_json_file_gcs(auth_state, gcs_auth_state_uri):
