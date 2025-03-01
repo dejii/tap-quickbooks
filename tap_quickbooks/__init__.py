@@ -263,6 +263,7 @@ def main_impl():
             quota_percent_total=CONFIG.get('quota_percent_total'),
             quota_percent_per_run=CONFIG.get('quota_percent_per_run'),
             is_sandbox=CONFIG.get('is_sandbox'),
+            gcs_auth_state_uri=CONFIG.get('gcs_auth_state_uri'),
             select_fields_by_default=CONFIG.get('select_fields_by_default'),
             default_start_date=CONFIG.get('start_date'),
             include_deleted = CONFIG.get('include_deleted'),

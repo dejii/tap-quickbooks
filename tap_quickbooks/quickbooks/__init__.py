@@ -5,6 +5,8 @@ import threading
 import time
 import backoff
 import requests
+from urllib.parse import urlparse
+from google.cloud import storage
 from requests.exceptions import RequestException
 import singer
 import singer.utils as singer_utils
@@ -61,6 +63,33 @@ def read_json_file(filename):
 
     return content
 
+def extract_bucket_name(uri: str) -> str:
+    parsed_uri = urlparse(uri)
+    if parsed_uri.scheme != 'gs':
+        raise Exception(f"Invalid GCS URI: {uri}")
+    bucket_name = parsed_uri.netloc
+    return bucket_name
+
+def read_json_file_gcs(gcs_auth_state_uri):
+    bucket_name = extract_bucket_name(gcs_auth_state_uri)
+    filename = urlparse(gcs_auth_state_uri).path.lstrip('/')
+    client = storage.Client()
+    bucket = client.bucket(bucket_name)
+    blob = bucket.blob(filename)
+    try:
+        content = blob.download_as_string()
+        return json.loads(content)
+    except Exception:
+        return {}
+
+def write_json_file_gcs(auth_state, gcs_auth_state_uri):
+    bucket_name = extract_bucket_name(gcs_auth_state_uri)
+    filename = urlparse(gcs_auth_state_uri).path.lstrip('/')
+    client = storage.Client()
+    bucket = client.bucket(bucket_name)
+    blob = bucket.blob(filename)
+    blob.upload_from_string(json.dumps(auth_state), content_type='application/json')
+    
 
 def write_json_file(filename, content):
     with open(filename, 'w') as f:
@@ -76,16 +105,23 @@ def get_auth_state_file():
     auth_state_file = Path(config_file).parent.parent.parent.joinpath('extractors/tap-quickbooks/auth_state.json').absolute()
     return auth_state_file
 
-def read_auth_state():
-    auth_state_file = get_auth_state_file()
-    try:
-        auth_state = read_json_file(auth_state_file)
-    except FileNotFoundError:
-        auth_state = {}
-    return auth_state
+
+def read_auth_state(gcs_auth_state_uri=None):
+    if gcs_auth_state_uri:
+        auth_state = read_json_file_gcs(gcs_auth_state_uri)
+        return auth_state
+    else: # fall back to local
+        auth_state_file = get_auth_state_file()
+        try:
+            auth_state = read_json_file(auth_state_file)
+        except FileNotFoundError:
+            auth_state = {}
+        return auth_state
 
 
-def write_auth_state(auth_state):
+def write_auth_state(auth_state, gcs_auth_state_uri=None):
+    if gcs_auth_state_uri:
+        write_json_file_gcs(auth_state, gcs_auth_state_uri)
     auth_state_file = get_auth_state_file()
     write_json_file(auth_state_file, auth_state)
 
@@ -258,6 +294,7 @@ class Quickbooks():
                  quota_percent_per_run=None,
                  quota_percent_total=None,
                  is_sandbox=None,
+                 gcs_auth_state_uri=None,
                  include_deleted = None,
                  select_fields_by_default=None,
                  default_start_date=None,
@@ -279,6 +316,7 @@ class Quickbooks():
         self.refresh_token = refresh_token
         self.token = token
         self.qb_client_id = qb_client_id
+        self.gcs_auth_state_uri = gcs_auth_state_uri
         self.qb_client_secret = qb_client_secret
         self.session = requests.Session()
         self.access_token = None
@@ -377,7 +415,7 @@ class Quickbooks():
         else:
             login_url = 'https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer'
 
-        auth_state = read_auth_state()
+        auth_state = read_auth_state(self.gcs_auth_state_uri)
 
         login_body = {
             'grant_type': 'refresh_token',
@@ -404,7 +442,7 @@ class Quickbooks():
             auth_state['refresh_token'] = auth['refresh_token']
 
             # persist access_token and refresh token
-            write_auth_state(auth_state)
+            write_auth_state(auth_state, self.gcs_auth_state_uri)
 
         except Exception as e:
             error_message = str(e)

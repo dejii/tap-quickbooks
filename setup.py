@@ -25,6 +25,7 @@ setup(name='tap-quickbooks',
           'xmltodict==0.11.0',
           'jsonpath-ng==1.4.3',
           'pytz==2018.4',
+          'google-cloud-storage==3.1.0',
           'attrs==20.2.0'
       ],
       entry_points='''
