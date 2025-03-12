@@ -125,8 +125,9 @@ def read_auth_state(gcs_auth_state_uri=None):
 def write_auth_state(auth_state, gcs_auth_state_uri=None):
     if gcs_auth_state_uri:
         write_json_file_gcs(auth_state, gcs_auth_state_uri)
-    auth_state_file = get_auth_state_file()
-    write_json_file(auth_state_file, auth_state)
+    else:
+        auth_state_file = get_auth_state_file()
+        write_json_file(auth_state_file, auth_state)
 
 
 QB_OBJECT_DEFINITIONS = _load_object_definitions()
