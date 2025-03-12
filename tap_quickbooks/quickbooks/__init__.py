@@ -437,6 +437,8 @@ class Quickbooks():
             LOGGER.info("OAuth2 login successful")
 
             auth = resp.json()
+            
+            LOGGER.info(f"Response from Quickbooks: {json.dumps(auth)}")
 
             self.access_token = auth['access_token']
             self.refresh_token = auth['refresh_token']
